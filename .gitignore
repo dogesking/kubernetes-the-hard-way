@@ -49,3 +49,19 @@ service-account.pem
 service-account-csr.json
 *.swp
 .idea/
+
+# --- Fichiers générés par le tuto actuel (openssl) ---
+# Binaires téléchargés (chapitre 02)
+/downloads/
+# Inventaire des machines et fichier hosts (chapitre 03)
+/machines.txt
+/hosts
+# Certificats et clés (chapitre 04)
+*.key
+*.crt
+*.csr
+# Kubeconfigs (chapitre 05)
+*.kubeconfig
+# Configs générées à partir de configs/ (chapitre 09)
+/10-bridge.conf
+/kubelet-config.yaml
