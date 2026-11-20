@@ -28,31 +28,21 @@ Now it's your turn to create a `machines.txt` file with the details for the thre
 
 ## Configuring SSH Access
 
-SSH will be used to configure the machines in the cluster. Verify that you have `root` SSH access to each machine listed in your machine database. You may need to enable root SSH access on each node by updating the sshd_config file and restarting the SSH server.
+SSH will be used to configure the machines in the cluster. The rest of this tutorial connects to each machine as `root`, using SSH key authentication only.
 
-### Enable root SSH Access
+### Check root SSH Access Policy
 
-If `root` SSH access is enabled for each of your machines you can skip this section.
-
-By default, a new `debian` install disables SSH access for the `root` user. This is done for security reasons as the `root` user has total administrative control of unix-like systems. If a weak password is used on a machine connected to the internet, well, let's just say it's only a matter of time before your machine belongs to someone else. As mentioned earlier, we are going to enable `root` access over SSH in order to streamline the steps in this tutorial. Security is a tradeoff, and in this case, we are optimizing for convenience. Log on to each machine via SSH using your user account, then switch to the `root` user using the `su` command:
+There is no need to enable `root` password login. On Debian and Ubuntu, the default `PermitRootLogin` value is `prohibit-password`: `root` cannot log in with a password, but can log in with an SSH key. On each machine, logged in with your regular admin user, verify the effective setting:
 
 ```bash
-su - root
+sudo sshd -T | grep -i permitrootlogin
 ```
 
-Edit the `/etc/ssh/sshd_config` SSH daemon configuration file and set the `PermitRootLogin` option to `yes`:
-
-```bash
-sed -i \
-  's/^#*PermitRootLogin.*/PermitRootLogin yes/' \
-  /etc/ssh/sshd_config
+```text
+permitrootlogin without-password
 ```
 
-Restart the `sshd` SSH server to pick up the updated configuration file:
-
-```bash
-systemctl restart sshd
-```
+> `without-password` is the legacy name of `prohibit-password`. If the output is `no`, look for an explicit `PermitRootLogin` line in `/etc/ssh/sshd_config` or `/etc/ssh/sshd_config.d/`, set it to `prohibit-password`, and restart the SSH server.
 
 ### Generate and Distribute SSH Keys
 
@@ -73,13 +63,19 @@ Your identification has been saved in /root/.ssh/id_rsa
 Your public key has been saved in /root/.ssh/id_rsa.pub
 ```
 
-Copy the SSH public key to each machine:
+Copy the SSH public key into `/root/.ssh/authorized_keys` on each machine, using your regular admin user and `sudo` (replace `admin` with your user name):
 
 ```bash
+ADMIN_USER=admin
 while read IP FQDN HOST SUBNET; do
-  ssh-copy-id root@${IP}
+  cat ~/.ssh/id_rsa.pub | ssh ${ADMIN_USER}@${IP} \
+    "sudo install -d -m 700 /root/.ssh && \
+     sudo tee -a /root/.ssh/authorized_keys > /dev/null && \
+     sudo chmod 600 /root/.ssh/authorized_keys"
 done < machines.txt
 ```
+
+> `sudo` must not prompt for a password here, since the remote command has no terminal. Users created by cloud-init usually have `NOPASSWD` sudo rights; otherwise, append the key to `/root/.ssh/authorized_keys` manually on each machine.
 
 Once each key is added, verify SSH public key access is working:
 
